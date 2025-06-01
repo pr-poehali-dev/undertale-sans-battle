@@ -1,188 +1,62 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useRef, useState } from "react";
 import PlayerHeart from "./PlayerHeart";
 import SansEnemy from "./SansEnemy";
 import BattleUI from "./BattleUI";
 import AttackPattern from "./AttackPattern";
-
-interface GameState {
-  phase: "intro" | "menu" | "attack" | "dodge" | "gameover";
-  playerHP: number;
-  sansHP: number;
-  turn: number;
-  isPlayerTurn: boolean;
-  attackPattern: string | null;
-}
+import { useGameState } from "@/hooks/useGameState";
+import { useKeyboardControls } from "@/hooks/useKeyboardControls";
+import { usePlayerMovement } from "@/hooks/usePlayerMovement";
+import { useBoneSystem } from "@/hooks/useBoneSystem";
+import { GAME_CONSTANTS } from "@/utils/gameConstants";
 
 const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [gameState, setGameState] = useState<GameState>({
-    phase: "intro",
-    playerHP: 92,
-    sansHP: 100000,
-    turn: 1,
-    isPlayerTurn: true,
-    attackPattern: null,
-  });
-
-  const [playerPosition, setPlayerPosition] = useState({ x: 320, y: 400 });
-  const [keys, setKeys] = useState<Set<string>>(new Set());
-  const [bones, setBones] = useState<
-    Array<{ x: number; y: number; direction: string; id: number }>
-  >([]);
   const [showDamage, setShowDamage] = useState(false);
 
-  // Game loop
-  useEffect(() => {
-    const gameLoop = setInterval(() => {
-      if (gameState.phase === "dodge") {
-        updateBones();
-        checkCollisions();
-      }
-    }, 16); // 60 FPS
+  // Game state management
+  const { gameState, takeDamage, dealDamageToSans, endTurn } = useGameState();
 
-    return () => clearInterval(gameLoop);
-  }, [gameState.phase, bones, playerPosition]);
+  // Input and movement
+  const keys = useKeyboardControls();
+  const playerPosition = usePlayerMovement(keys, gameState.phase === "dodge");
 
-  // Keyboard controls
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      setKeys((prev) => new Set(prev).add(e.key));
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      setKeys((prev) => {
-        const newKeys = new Set(prev);
-        newKeys.delete(e.key);
-        return newKeys;
-      });
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, []);
-
-  // Player movement
-  useEffect(() => {
-    const movePlayer = () => {
-      if (gameState.phase !== "dodge") return;
-
-      setPlayerPosition((prev) => {
-        let newX = prev.x;
-        let newY = prev.y;
-        const speed = 3;
-
-        if (keys.has("ArrowLeft") || keys.has("a")) newX -= speed;
-        if (keys.has("ArrowRight") || keys.has("d")) newX += speed;
-        if (keys.has("ArrowUp") || keys.has("w")) newY -= speed;
-        if (keys.has("ArrowDown") || keys.has("s")) newY += speed;
-
-        // Boundary checks (battle box: 160x140 centered at 320x400)
-        newX = Math.max(240, Math.min(400, newX));
-        newY = Math.max(330, Math.min(470, newY));
-
-        return { x: newX, y: newY };
-      });
-    };
-
-    const interval = setInterval(movePlayer, 16);
-    return () => clearInterval(interval);
-  }, [keys, gameState.phase]);
-
-  const updateBones = () => {
-    setBones((prev) =>
-      prev
-        .map((bone) => ({
-          ...bone,
-          x: bone.direction === "left" ? bone.x - 4 : bone.x + 4,
-          y: bone.direction === "up" ? bone.y - 4 : bone.y + 4,
-        }))
-        .filter(
-          (bone) =>
-            bone.x > -50 && bone.x < 690 && bone.y > -50 && bone.y < 550,
-        ),
-    );
-  };
-
-  const checkCollisions = () => {
-    bones.forEach((bone) => {
-      const distance = Math.sqrt(
-        Math.pow(bone.x - playerPosition.x, 2) +
-          Math.pow(bone.y - playerPosition.y, 2),
-      );
-
-      if (distance < 15) {
-        takeDamage(1);
-        setBones((prev) => prev.filter((b) => b.id !== bone.id));
-      }
-    });
-  };
-
-  const takeDamage = (damage: number) => {
-    setGameState((prev) => ({
-      ...prev,
-      playerHP: Math.max(0, prev.playerHP - damage),
-    }));
-
-    if (gameState.playerHP - damage <= 0) {
-      setGameState((prev) => ({ ...prev, phase: "gameover" }));
-    }
-  };
+  // Bone system
+  const { bones, spawnBones, clearBones } = useBoneSystem(
+    gameState.phase === "dodge",
+    playerPosition,
+    () => takeDamage(GAME_CONSTANTS.BONE_DAMAGE),
+  );
 
   const handleAttack = () => {
     setShowDamage(true);
-    setGameState((prev) => ({
-      ...prev,
-      sansHP: prev.sansHP - 160,
-      phase: "dodge",
-      isPlayerTurn: false,
-      attackPattern: "bones",
-    }));
+    dealDamageToSans(GAME_CONSTANTS.ATTACK_DAMAGE);
 
     // Start Sans attack
     setTimeout(() => {
       startSansAttack();
-    }, 1000);
+    }, GAME_CONSTANTS.TIMING.ATTACK_DELAY);
 
-    setTimeout(() => setShowDamage(false), 1000);
+    setTimeout(
+      () => setShowDamage(false),
+      GAME_CONSTANTS.TIMING.DAMAGE_DISPLAY,
+    );
   };
 
   const startSansAttack = () => {
-    const patterns = ["bones", "laser", "gravity"];
-    const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+    const pattern =
+      GAME_CONSTANTS.ATTACK_PATTERNS[
+        Math.floor(Math.random() * GAME_CONSTANTS.ATTACK_PATTERNS.length)
+      ];
 
     if (pattern === "bones") {
-      // Generate bone attack
-      for (let i = 0; i < 8; i++) {
-        setTimeout(() => {
-          setBones((prev) => [
-            ...prev,
-            {
-              x: Math.random() * 640,
-              y: -20,
-              direction: "down",
-              id: Date.now() + i,
-            },
-          ]);
-        }, i * 200);
-      }
+      spawnBones();
     }
 
-    // End turn after 3 seconds
+    // End turn after duration
     setTimeout(() => {
-      setGameState((prev) => ({
-        ...prev,
-        phase: "menu",
-        isPlayerTurn: true,
-        turn: prev.turn + 1,
-        attackPattern: null,
-      }));
-      setBones([]);
-    }, 3000);
+      endTurn();
+      clearBones();
+    }, GAME_CONSTANTS.TIMING.TURN_DURATION);
   };
 
   const handleMercy = () => {
@@ -193,8 +67,8 @@ const GameCanvas: React.FC = () => {
     <div className="w-full h-screen bg-black flex items-center justify-center relative overflow-hidden">
       <canvas
         ref={canvasRef}
-        width={640}
-        height={480}
+        width={GAME_CONSTANTS.CANVAS.WIDTH}
+        height={GAME_CONSTANTS.CANVAS.HEIGHT}
         className="border-2 border-white"
         style={{ imageRendering: "pixelated" }}
       />

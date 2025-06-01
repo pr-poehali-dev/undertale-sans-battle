@@ -17,62 +17,79 @@ const BattleUI: React.FC<BattleUIProps> = ({
   onMercy,
 }) => {
   return (
-    <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-96">
-      {/* HP Bar */}
-      <div className="bg-black border-2 border-white p-4 mb-4">
-        <div className="flex items-center gap-4 text-white font-mono">
-          <span>Frisk</span>
-          <span>LV 19</span>
-          <div className="flex items-center gap-2">
-            <span>HP</span>
-            <div className="w-24 h-6 bg-red-900 border border-white relative">
-              <div
-                className="h-full bg-yellow-400 transition-all duration-300"
-                style={{ width: `${(gameState.playerHP / 92) * 100}%` }}
-              />
+    <div className="absolute bottom-0 left-0 w-full">
+      {/* Player Stats Bar */}
+      <div className="bg-black text-white font-mono text-lg px-8 py-4 border-t-2 border-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <span className="text-white">CHARA</span>
+            <span className="text-white">LV 19</span>
+            <div className="flex items-center gap-2">
+              <span className="text-white">HP</span>
+              <div className="w-32 h-6 bg-black border-2 border-white relative">
+                {/* Yellow HP bar background */}
+                <div className="absolute inset-0 bg-yellow-400 h-full" />
+                {/* Red HP bar (current health) */}
+                <div
+                  className="absolute inset-0 bg-red-500 h-full transition-all duration-300"
+                  style={{ width: `${(gameState.playerHP / 92) * 100}%` }}
+                />
+              </div>
+              <span className="text-white ml-2">{gameState.playerHP} / 92</span>
             </div>
-            <span>{gameState.playerHP} / 92</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-white">KR</span>
+            <span className="text-white">19</span>
+            <span className="text-yellow-400">⚡</span>
+            <span className="text-white">92</span>
           </div>
         </div>
       </div>
 
       {/* Battle Menu */}
       {gameState.phase === "menu" && gameState.isPlayerTurn && (
-        <div className="bg-black border-2 border-white p-4">
-          <div className="grid grid-cols-2 gap-4 text-white font-mono">
+        <div className="bg-black border-t-2 border-white p-8">
+          <div className="grid grid-cols-4 gap-8 max-w-4xl mx-auto">
             <button
-              className="border border-white p-2 hover:bg-white hover:text-black transition-colors"
+              className="bg-black border-4 border-orange-400 text-orange-400 text-xl font-bold py-4 px-6 hover:bg-orange-400 hover:text-black transition-colors font-mono"
               onClick={onAttack}
             >
-              ⚔️ FIGHT
+              ⚔ FIGHT
             </button>
             <button
-              className="border border-white p-2 hover:bg-white hover:text-black transition-colors"
+              className="bg-black border-4 border-orange-400 text-orange-400 text-xl font-bold py-4 px-6 hover:bg-orange-400 hover:text-black transition-colors font-mono opacity-50"
               disabled
             >
-              🎒 ACT
+              )) ACT
             </button>
             <button
-              className="border border-white p-2 hover:bg-white hover:text-black transition-colors"
+              className="bg-black border-4 border-orange-400 text-orange-400 text-xl font-bold py-4 px-6 hover:bg-orange-400 hover:text-black transition-colors font-mono opacity-50"
               disabled
             >
-              📦 ITEM
+              🎒 ITEM
             </button>
             <button
-              className="border border-white p-2 hover:bg-white hover:text-black transition-colors"
+              className="bg-black border-4 border-orange-400 text-orange-400 text-xl font-bold py-4 px-6 hover:bg-orange-400 hover:text-black transition-colors font-mono"
               onClick={onMercy}
             >
-              💛 MERCY
+              ✕ MERCY
             </button>
           </div>
         </div>
       )}
 
-      {/* Battle Box */}
+      {/* Battle Box for Dodge Phase */}
       {gameState.phase === "dodge" && (
-        <div className="mx-auto w-80 h-36 border-4 border-white bg-black relative">
-          <div className="absolute -top-6 left-0 text-white text-sm font-mono">
-            * Используй стрелки для управления
+        <div className="flex justify-center items-center h-96 bg-black">
+          <div className="relative">
+            {/* Battle box border */}
+            <div className="w-80 h-40 border-4 border-white bg-black relative">
+              {/* Instructions */}
+              <div className="absolute -top-8 left-0 text-white text-sm font-mono">
+                * Используй стрелки или WASD для управления
+              </div>
+            </div>
           </div>
         </div>
       )}
